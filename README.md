@@ -85,5 +85,15 @@ This is the place for you to write reflections:
 ### Mandatory (Subscriber) Reflections
 
 #### Reflection Subscriber-1
+`RwLock<Vec<Notification>>` is necessary because the receiver can read notifications from the root endpoint while also appending new notifications from the `receive` endpoint. Those operations can happen concurrently, so shared mutable access must be synchronized. `RwLock` fits this case because reads are expected to happen frequently and multiple readers can safely access the collection at the same time, while writes still remain exclusive.
+
+Using `Mutex<Vec<Notification>>` would also be safe, but it would be more restrictive because even read-only access would block other readers. In this tutorial, listing notifications does not modify the data, so allowing concurrent readers is a better match for the access pattern. That makes `RwLock` a more suitable synchronization primitive for the receiver repository.
+
+Rust does not allow mutable access to ordinary static variables the way Java does because unrestricted shared mutation would violate Rust's ownership and aliasing guarantees. Mutable global state must explicitly use safe interior mutability patterns such as `RwLock`, `Mutex`, or other synchronization wrappers. `lazy_static` helps here because it lets us initialize non-const static-like values safely while still forcing us to handle mutation through types that preserve thread safety.
 
 #### Reflection Subscriber-2
+I did explore parts outside the direct checklist, especially `src/lib.rs`, because the service implementation depends on shared configuration, common error responses, and the reusable `REQWEST_CLIENT`. Understanding that file helped me see how environment variables are exposed through `APP_CONFIG`, why the project already has a shared HTTP client, and how custom error responses are returned consistently across handlers. That context made the tutorial steps easier to connect instead of treating each file as isolated code.
+
+Observer pattern makes it easy to plug in more subscribers because the publisher only needs to store more subscriber entries and call the same `update()` operation for each of them. No special-case logic is needed for each receiver instance; every new receiver follows the same subscribe and receive contract. Spawning more receiver instances is therefore straightforward. Spawning more than one main app instance would be harder, because each publisher would have its own in-memory subscriber list and product state, so coordination between publishers would need an additional shared storage or communication mechanism.
+
+I have not added custom automated tests or extra Postman documentation in this tutorial repository. My focus was to complete the required flow first and verify it through repeated endpoint calls across multiple running instances. Even so, the Postman collection is already useful because it standardizes requests for subscribe, unsubscribe, create, publish, delete, and receive flows, which reduces setup time and helps validate interaction between the publisher and receiver applications.
