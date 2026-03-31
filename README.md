@@ -85,5 +85,10 @@ This is the place for you to write reflections:
 ### Mandatory (Subscriber) Reflections
 
 #### Reflection Subscriber-1
+`RwLock<Vec<Notification>>` is necessary because the receiver can read notifications from the root endpoint while also appending new notifications from the `receive` endpoint. Those operations can happen concurrently, so shared mutable access must be synchronized. `RwLock` fits this case because reads are expected to happen frequently and multiple readers can safely access the collection at the same time, while writes still remain exclusive.
+
+Using `Mutex<Vec<Notification>>` would also be safe, but it would be more restrictive because even read-only access would block other readers. In this tutorial, listing notifications does not modify the data, so allowing concurrent readers is a better match for the access pattern. That makes `RwLock` a more suitable synchronization primitive for the receiver repository.
+
+Rust does not allow mutable access to ordinary static variables the way Java does because unrestricted shared mutation would violate Rust's ownership and aliasing guarantees. Mutable global state must explicitly use safe interior mutability patterns such as `RwLock`, `Mutex`, or other synchronization wrappers. `lazy_static` helps here because it lets us initialize non-const static-like values safely while still forcing us to handle mutation through types that preserve thread safety.
 
 #### Reflection Subscriber-2
